@@ -1,0 +1,15 @@
+* text=auto
+
+*.lua text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.qml text eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ogg binary
+*.mp3 binary
+*.wav binary
