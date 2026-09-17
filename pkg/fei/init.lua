@@ -22,17 +22,41 @@ local feiUnexpectation = fk.CreateCard {
   is_damage_card = true,
   damage_type = fk.NormalDamage,
 }
+local feiBogusFlower = fk.CreateCard {
+  name = "fei__bogus_flower",
+  type = Card.TypeTrick,
+  skill = "fei__bogus_flower_skill",
+}
+local feiUnderhanding = fk.CreateCard {
+  name = "fei__underhanding",
+  type = Card.TypeTrick,
+  skill = "fei__underhanding_skill",
+}
+local feiShadow = fk.CreateCard {
+  name = "fei__shadow",
+  type = Card.TypeTrick,
+  skill = "fei__shadow_skill",
+}
 extension:addCardSpec("fei__chanzhang_offensive", Card.NoSuit, 0)
 extension:addCardSpec("fei__chanzhang_defensive", Card.NoSuit, 0)
-extension:loadCardSkels { chanzhangOffensive, chanzhangDefensive, feiUnexpectation }
+extension:loadCardSkels {
+  chanzhangOffensive, chanzhangDefensive, feiUnexpectation,
+  feiBogusFlower, feiUnderhanding, feiShadow,
+}
 
 Fk:loadTranslationTable {
   ["fei__chanzhang_offensive"] = "馋杖",
   ["fei__chanzhang_defensive"] = "馋杖",
   ["fei__unexpectation"] = "出其不意",
+  ["fei__bogus_flower"] = "树上开花",
+  ["fei__underhanding"] = "瞒天过海",
+  ["fei__shadow"] = "影",
   [":fei__chanzhang_offensive"] = "装备牌·进攻坐骑<br/><b>装备技能</b>：锁定技，此牌进入/离开装备栏时，你须使用一张非伤害/非基本牌；你可以弃置此牌以将区域内所有牌当【无中生有】使用。",
   [":fei__chanzhang_defensive"] = "装备牌·防御坐骑<br/><b>装备技能</b>：锁定技，此牌进入/离开装备栏时，你须使用一张非伤害/非基本牌；你可以弃置此牌以将区域内所有牌当【无中生有】使用。",
   [":fei__unexpectation"] = "锦囊牌<br/><b>时机</b>：出牌阶段<br/><b>目标</b>：一名有手牌的其他角色<br/><b>效果</b>：你展示目标角色的一张手牌，若该牌与此【出其不意】花色不同，你对其造成1点伤害。",
+  [":fei__bogus_flower"] = "锦囊牌<br/><b>目标</b>：你。<br/><b>效果</b>：弃置一至两张牌并摸等量牌；若其中有装备牌，额外摸一张牌。",
+  [":fei__underhanding"] = "锦囊牌<br/><b>目标</b>：至多两名区域内有牌的其他角色。<br/><b>效果</b>：你获得目标区域内一张牌，然后交给其一张牌。",
+  [":fei__shadow"] = "衍生牌。此牌不能被使用。",
 }
 
 General:new(extension, "fei__leizhenzi", "fei_kingdom", 3):addSkills {
@@ -49,9 +73,11 @@ General:new(extension, "fei__leimu", "fei_kingdom", 3, 3, General.Female):addSki
   "fei__tianleiyin",
 }
 
-General:new(extension, "fei__zhongkui", "fei_kingdom", 4):addSkills {
+local zhongkui = General:new(extension, "fei__zhongkui", "fei_kingdom", 4)
+zhongkui:addSkills {
   "fei__chulingtegong",
   "fei__baiguiyexing",
+  "fei__baiguiyexing_nullification",
 }
 
 General:new(extension, "fei__baigujing", "fei_kingdom", 3, 3, General.Female):addSkills {
@@ -96,6 +122,10 @@ General:new(extension, "fei__wangliang", "fei_kingdom", 3, 3, General.Female):ad
 
 General:new(extension, "fei__baixiang", "fei_kingdom", 3):addSkills {
   "fei__fuyiqizhe",
+}
+
+General:new(extension, "fei__dapeng", "fei_kingdom", 4):addSkills {
+  "fei__jilvhuashen",
 }
 
 Fk:loadTranslationTable {
@@ -150,6 +180,10 @@ Fk:loadTranslationTable {
   ["fei__baixiang"] = "白象",
   ["designer:fei__baixiang"] = "牛头马",
   ["!fei__baixiang"] = "局势反转！",
+
+  ["fei__dapeng"] = "大鹏",
+  ["designer:fei__dapeng"] = "牛头马",
+  ["!fei__dapeng"] = "快逃吧，我让你两只脚",
 }
 
 return extension

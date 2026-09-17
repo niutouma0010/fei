@@ -89,10 +89,9 @@ wukounvpu:addEffect(fk.CardShown, {
   anim_type = "drawcard",
   can_trigger = function(self, event, target, player, data)
     if not player:hasSkill(wukounvpu.name) or player.dead or not data.from then return false end
-    local n = #table.filter(data.cardIds, function(id)
+    return table.find(data.cardIds, function(id)
       return isNoSuitCard(Fk:getCardById(id), data.from)
-    end)
-    return n > 0
+    end) ~= nil
   end,
   on_cost = Util.TrueFunc,
   on_use = function(self, event, target, player, data)
@@ -106,15 +105,13 @@ wukounvpu:addEffect(fk.BeforeCardsMove, {
   end,
   on_refresh = function(self, event, target, player, data)
     for _, move in ipairs(data) do
-      if move.from and move.moveReason == fk.ReasonDiscard then
-        local n = #table.filter(move.moveInfo, function(info)
+      if move.from and move.moveReason == fk.ReasonDiscard and
+        table.find(move.moveInfo, function(info)
           return isNoSuitCard(info.beforeCard, move.from)
-        end)
-        if n > 0 then
-          move.extra_data = move.extra_data or {}
-          move.extra_data.fei__wukounvpu_nosuit = move.extra_data.fei__wukounvpu_nosuit or {}
-          move.extra_data.fei__wukounvpu_nosuit[player.id] = n
-        end
+        end) then
+        move.extra_data = move.extra_data or {}
+        move.extra_data.fei__wukounvpu_nosuit = move.extra_data.fei__wukounvpu_nosuit or {}
+        move.extra_data.fei__wukounvpu_nosuit[player.id] = true
       end
     end
   end,
@@ -123,12 +120,10 @@ wukounvpu:addEffect(fk.BeforeCardsMove, {
 wukounvpu:addEffect(fk.AfterCardsMove, {
   anim_type = "drawcard",
   can_trigger = function(self, event, target, player, data)
-    if not player:hasSkill(wukounvpu.name) or player.dead then return false end
-    local n = 0
-    for _, move in ipairs(data) do
-      n = n + (((move.extra_data or {}).fei__wukounvpu_nosuit or {})[player.id] or 0)
-    end
-    return n > 0
+    return player:hasSkill(wukounvpu.name) and not player.dead and
+      table.find(data, function(move)
+        return ((move.extra_data or {}).fei__wukounvpu_nosuit or {})[player.id]
+      end) ~= nil
   end,
   on_cost = Util.TrueFunc,
   on_use = function(self, event, target, player, data)

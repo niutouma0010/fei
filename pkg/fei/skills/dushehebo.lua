@@ -4,9 +4,10 @@ local dushehebo = fk.CreateSkill {
 
 Fk:loadTranslationTable {
   ["fei__dushehebo"] = "毒舌河伯",
-  [":fei__dushehebo"] = "每回合结束时，你可以将手牌数弃至上限，然后将弃置牌依次当【出其不意】使用。",
-  ["#fei__dushehebo-invoke"] = "毒舌河伯：是否将手牌数弃至手牌上限，然后将弃置牌依次当【出其不意】使用？",
-  ["#fei__dushehebo-use"] = "毒舌河伯：将此弃置牌当【出其不意】使用",
+  [":fei__dushehebo"] = "每回合结束时，你可以将超出手牌上限的牌依次按牌面花色当【出其不意】使用。",
+  ["#fei__dushehebo-invoke"] = "毒舌河伯：是否将超出手牌上限的牌依次按牌面花色当【出其不意】使用？",
+  ["#fei__dushehebo-choose"] = "毒舌河伯：选择超出手牌上限的牌",
+  ["#fei__dushehebo-use"] = "毒舌河伯：将此牌按牌面花色当【出其不意】使用",
 }
 
 dushehebo:addEffect(fk.TurnEnd, {
@@ -30,6 +31,7 @@ dushehebo:addEffect(fk.TurnEnd, {
       max_num = n,
       include_equip = false,
       skill_name = dushehebo.name,
+      prompt = "#fei__dushehebo-choose",
       cancelable = false,
       skip = true,
     })

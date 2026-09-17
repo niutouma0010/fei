@@ -2,9 +2,11 @@ local baiguiyexing = fk.CreateSkill {
   name = "fei__baiguiyexing",
 }
 
+local registered_mark = "fei__baiguiyexing_nullification"
+
 Fk:loadTranslationTable {
   ["fei__baiguiyexing"] = "百鬼夜行",
-  [":fei__baiguiyexing"] = "阶段技，你可以重铸区域内若干张花色各不相同的牌以视为使用一张目标数上限相同的【火攻】。",
+  [":fei__baiguiyexing"] = "阶段技，你可以重铸区域内若干张花色各不相同的牌以视为使用一张目标数上限相同的【火攻】，场上余下的牌可被当作【无懈可击】使用。",
 
   ["#fei__baiguiyexing"] = "百鬼夜行：你可以重铸区域内若干张花色各不相同的牌以视为使用一张目标数上限相同的【火攻】",
 }
@@ -40,6 +42,9 @@ baiguiyexing:addEffect("active", {
   on_use = function(self, room, effect)
     local player = effect.from
     room:recastCard(effect.cards, player, baiguiyexing.name)
+    for _, id in ipairs(player:getCardIds("ej")) do
+      room:setCardMark(Fk:getCardById(id, true), registered_mark, player.id)
+    end
     if player.dead then return end
     local targets = table.filter(effect.tos, function(p)
       return not p.dead and not p:isKongcheng()
