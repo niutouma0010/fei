@@ -1,4 +1,4 @@
-local mobileUtil = require "packages.mobile.mobile_util"
+local mobileUtil = require "packages.fei.util"
 local centralArea = require "packages.fei.pkg.fei.skills.central_area"
 
 local sanrenzuyeshi = fk.CreateSkill {

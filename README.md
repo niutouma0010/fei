@@ -7,6 +7,7 @@
 - `init.lua`：扩展入口。
 - `pkg/fei/init.lua`：武将包入口与武将注册。
 - `pkg/fei/skills/`：每个技能的独立 Lua 实现。
+- `util.lua`、`qml/`：本扩展自带的选牌名、明置牌和阴阳鱼机制，不依赖其他玩法扩展。
 - `image/generals/`：武将立绘，文件名与武将代码名一致。
 - `audio/skill/`：技能语音。
 - `audio/death/`：阵亡语音。

@@ -2,7 +2,7 @@ local buxiangqichuanga = fk.CreateSkill {
   name = "fei__buxiangqichuanga",
 }
 
-local U = require "packages.utility.utility"
+local U = require "packages.fei.util"
 
 local limited_mark = "fei__buxiangqichuanga_limited-round"
 local limited_visible_mark = "@fei__buxiangqichuanga_limited-round"

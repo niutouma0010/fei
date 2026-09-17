@@ -2,7 +2,7 @@ local yanzhiquan = fk.CreateSkill {
   name = "fei__yanzhiquan",
 }
 
-local U = require "packages.utility.utility"
+local U = require "packages.fei.util"
 
 local fire_card_names = { "fire__slash", "fire_attack", "fan" }
 local fire_name_mark = "fei__yanzhiquan-inhand-turn"

@@ -1,4 +1,4 @@
-local mobileUtil = require "packages.mobile.mobile_util"
+local mobileUtil = require "packages.fei.util"
 
 local fuyingchongchong = fk.CreateSkill {
   name = "fei__fuyingchongchong",

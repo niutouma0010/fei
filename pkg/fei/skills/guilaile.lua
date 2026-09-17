@@ -2,8 +2,6 @@ local guilaile = fk.CreateSkill {
   name = "fei__guilaile",
 }
 
-local HegUtil = require "packages.hegemony.util"
-
 local host_mark = "fei__guilaile_host"
 local owner_mark = "fei__guilaile_owner"
 local visible_mark = "@fei__minglingfuti"
@@ -118,7 +116,8 @@ local function attach(player, host)
     "-fei__guilaile|-fei__mingzhihuo|-fei__mingzhiwu", nil, false)
   setHp(room, host, mergedHp, mergedMaxHp)
   if (host:getMark(host_maxhp_mark) + player:getMark(wangliang_maxhp_mark)) % 2 == 1 then
-    HegUtil.addHegMark(host, "yinyangfish", 1)
+    room:addPlayerMark(host, "@!!fei_yinyangfish", 1)
+    room:handleAddLoseSkills(host, "fei__yinyangfish_skill&")
   end
   setResting(room, player, true)
   local turn = room.logic:getCurrentEvent():findParent(GameEvent.Turn, true)

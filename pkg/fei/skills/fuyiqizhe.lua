@@ -2,7 +2,7 @@ local fuyiqizhe = fk.CreateSkill {
   name = "fei__fuyiqizhe",
 }
 
-local U = require "packages.utility.utility"
+local U = require "packages.fei.util"
 local used_mark = "fei__fuyiqizhe_used-round"
 local choices = { "unexpectation", "bogus_flower", "underhanding" }
 local actual_names = {

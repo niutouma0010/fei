@@ -11,7 +11,7 @@ local leidianshaonv = fk.CreateSkill {
   end,
 }
 
-local U = require "packages.utility.utility"
+local U = require "packages.fei.util"
 
 local changed_mark = "fei__leidianshaonv_changed"
 local source_mark = "fei__leidianshaonv_source"
