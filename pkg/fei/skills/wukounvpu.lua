@@ -7,7 +7,7 @@ local nosuit_mark = "fei__wukounvpu_nosuit-turn"
 
 Fk:loadTranslationTable {
   ["fei__wukounvpu"] = "无口女仆",
-  [":fei__wukounvpu"] = "锁定技，你的牌无花色，当你须响应牌时，你展示对方至多半数手牌，这些牌本回合亦无花色，若已无花色，则你摸等量张牌。",
+  [":fei__wukounvpu"] = "锁定技，你的牌无花色，当你须响应牌时，你展示对方至多半数手牌，这些牌本回合亦无花色。已无花色的牌被展示或弃置后，你摸一张牌。",
   ["#fei__wukounvpu-choose"] = "无口女仆：展示 %dest 至多半数手牌，这些牌本回合无花色",
 }
 
@@ -19,6 +19,12 @@ local function responseSource(player, data)
     from = player.room:getPlayerById(from)
   end
   if from and from ~= player and not from.dead then return from end
+end
+
+local function isNoSuitCard(card, owner)
+  return card.suit == Card.NoSuit or
+    (owner and owner:hasSkill(wukounvpu.name, true, true)) or
+    (owner and card:getMark(nosuit_mark) == owner.id)
 end
 
 wukounvpu:addEffect(fk.AskForCardUse, {
@@ -42,18 +48,11 @@ wukounvpu:addEffect(fk.AskForCardUse, {
       prompt = "#fei__wukounvpu-choose::" .. from.id,
     })
     if #cards == 0 then return end
-    local already_nosuit = table.every(cards, function(id)
-      local card = Fk:getCardById(id)
-      return card.suit == Card.NoSuit or card:getMark(nosuit_mark) == from.id
-    end)
-    from:showCards(cards)
+    from:showCards(cards, player)
     for _, id in ipairs(cards) do
       room:setCardMark(Fk:getCardById(id), nosuit_mark, from.id)
     end
     from:filterHandcards()
-    if already_nosuit and not player.dead then
-      player:drawCards(#cards, wukounvpu.name)
-    end
   end,
 })
 
@@ -78,18 +77,62 @@ wukounvpu:addEffect(fk.AskForCardResponse, {
       prompt = "#fei__wukounvpu-choose::" .. from.id,
     })
     if #cards == 0 then return end
-    local already_nosuit = table.every(cards, function(id)
-      local card = Fk:getCardById(id)
-      return card.suit == Card.NoSuit or card:getMark(nosuit_mark) == from.id
-    end)
-    from:showCards(cards)
+    from:showCards(cards, player)
     for _, id in ipairs(cards) do
       room:setCardMark(Fk:getCardById(id), nosuit_mark, from.id)
     end
     from:filterHandcards()
-    if already_nosuit and not player.dead then
-      player:drawCards(#cards, wukounvpu.name)
+  end,
+})
+
+wukounvpu:addEffect(fk.CardShown, {
+  anim_type = "drawcard",
+  can_trigger = function(self, event, target, player, data)
+    if not player:hasSkill(wukounvpu.name) or player.dead or not data.from then return false end
+    local n = #table.filter(data.cardIds, function(id)
+      return isNoSuitCard(Fk:getCardById(id), data.from)
+    end)
+    return n > 0
+  end,
+  on_cost = Util.TrueFunc,
+  on_use = function(self, event, target, player, data)
+    player:drawCards(1, wukounvpu.name)
+  end,
+})
+
+wukounvpu:addEffect(fk.BeforeCardsMove, {
+  can_refresh = function(self, event, target, player, data)
+    return player:hasSkill(wukounvpu.name, true, true)
+  end,
+  on_refresh = function(self, event, target, player, data)
+    for _, move in ipairs(data) do
+      if move.from and move.moveReason == fk.ReasonDiscard then
+        local n = #table.filter(move.moveInfo, function(info)
+          return isNoSuitCard(info.beforeCard, move.from)
+        end)
+        if n > 0 then
+          move.extra_data = move.extra_data or {}
+          move.extra_data.fei__wukounvpu_nosuit = move.extra_data.fei__wukounvpu_nosuit or {}
+          move.extra_data.fei__wukounvpu_nosuit[player.id] = n
+        end
+      end
     end
+  end,
+})
+
+wukounvpu:addEffect(fk.AfterCardsMove, {
+  anim_type = "drawcard",
+  can_trigger = function(self, event, target, player, data)
+    if not player:hasSkill(wukounvpu.name) or player.dead then return false end
+    local n = 0
+    for _, move in ipairs(data) do
+      n = n + (((move.extra_data or {}).fei__wukounvpu_nosuit or {})[player.id] or 0)
+    end
+    return n > 0
+  end,
+  on_cost = Util.TrueFunc,
+  on_use = function(self, event, target, player, data)
+    player:drawCards(1, wukounvpu.name)
   end,
 })
 

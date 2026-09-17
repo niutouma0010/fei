@@ -15,6 +15,7 @@ local chanzhang_names = { "fei__chanzhang_offensive", "fei__chanzhang_defensive"
 local provided_mark = "fei__zuijiadadang_provided"
 local slot_mark = "fei__zuijiadadang_slot"
 local syncing_mark = "fei__zuijiadadang_syncing"
+local suppress_lion_mark = "fei__zuijiadadang_suppress_lion"
 
 Fk:loadTranslationTable {
   ["fei__zuijiadadang"] = "最佳搭档",
@@ -67,6 +68,25 @@ local function ensureExtraSlot(player, slot)
   player.room:setPlayerMark(player, slot_mark, slot)
 end
 
+local function equipProvidedCard(player, name)
+  local room = player.room
+  local cards = room:prepareDeriveCards(provided_specs,
+    "fei__zuijiadadang_provided_" .. player.id)
+  local id = table.find(cards, function(card_id)
+    return Fk:getCardById(card_id, true).name == name
+  end)
+  if not id then return end
+  room:setCardMark(Fk:getCardById(id, true), provided_mark, player.id)
+  local virtual = Fk:cloneCard(name, Card.NoSuit, 0)
+  virtual:addSubcard(id)
+  player:addVirtualEquip(virtual)
+  room:moveCardTo(virtual, Card.PlayerEquip, player, fk.ReasonPut,
+    zuijiadadang.name, nil, true, player)
+  if room:getCardOwner(id) == player and room:getCardArea(id) == Card.PlayerEquip then
+    return id
+  end
+end
+
 local function syncProvidedEquip(player)
   if player.dead or not player:hasSkill(zuijiadadang.name, true) or
     player:getMark(syncing_mark) > 0 then
@@ -80,9 +100,30 @@ local function syncProvidedEquip(player)
 
   local current = providedCard(player)
   if current and Fk:getCardById(current, true).name ~= desired then
-    room:moveCardTo(current, Card.Void, nil, fk.ReasonJustMove,
-      zuijiadadang.name, nil, true, player)
-    current = nil
+    -- 先把新装备放入对应栏位，再移走旧装备。如此由【馋杖】离场
+    -- 切换至【麒麟弓】时，【白银狮子】离场检测已不再有效。
+    local old_extra_slot = player:getMark(slot_mark)
+    local has_other = #player:getEquipments(subtype) > 0
+    if has_other and old_extra_slot ~= slot then
+      room:addPlayerEquipSlots(player, slot)
+    end
+    local new_id = equipProvidedCard(player, desired)
+    if new_id then
+      if Fk:getCardById(current, true).name == "silver_lion" and desired == "kylin_bow" then
+        room:setPlayerMark(player, suppress_lion_mark, 1)
+      end
+      room:moveCardTo(current, Card.Void, nil, fk.ReasonJustMove,
+        zuijiadadang.name, nil, true, player)
+      room:setPlayerMark(player, suppress_lion_mark, 0)
+      if type(old_extra_slot) == "string" and old_extra_slot ~= "" and old_extra_slot ~= slot then
+        room:removePlayerEquipSlots(player, old_extra_slot)
+      end
+      room:setPlayerMark(player, slot_mark, has_other and slot or 0)
+    elseif has_other and old_extra_slot ~= slot then
+      room:removePlayerEquipSlots(player, slot)
+    end
+    room:setPlayerMark(player, syncing_mark, 0)
+    return
   end
 
   local has_other = table.find(player:getEquipments(subtype), function(id)
@@ -95,22 +136,30 @@ local function syncProvidedEquip(player)
   end
 
   if not current then
-    local cards = room:prepareDeriveCards(provided_specs,
-      "fei__zuijiadadang_provided_" .. player.id)
-    local id = table.find(cards, function(card_id)
-      return Fk:getCardById(card_id, true).name == desired
-    end)
-    if id then
-      room:setCardMark(Fk:getCardById(id, true), provided_mark, player.id)
-      local virtual = Fk:cloneCard(desired, Card.NoSuit, 0)
-      virtual:addSubcard(id)
-      player:addVirtualEquip(virtual)
-      room:moveCardTo(virtual, Card.PlayerEquip, player, fk.ReasonPut,
-        zuijiadadang.name, nil, true, player)
-    end
+    equipProvidedCard(player, desired)
   end
   room:setPlayerMark(player, syncing_mark, 0)
 end
+
+zuijiadadang:addEffect(fk.PreHpRecover, {
+  global = true,
+  mute = true,
+  can_trigger = function(self, event, target, player, data)
+    return target == player and player:getMark(suppress_lion_mark) > 0 and
+      data.skillName == "#silver_lion_skill"
+  end,
+  on_use = function(self, event, target, player, data)
+    data:preventRecover()
+  end,
+})
+
+zuijiadadang:addEffect("invalidity", {
+  global = true,
+  recheck_invalidity = true,
+  invalidity_func = function(self, from, skill)
+    return from:getMark(suppress_lion_mark) > 0 and skill.name == "#silver_lion_skill"
+  end,
+})
 
 local function putChanzhang(player)
   local room = player.room

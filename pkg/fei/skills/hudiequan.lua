@@ -94,14 +94,8 @@ hudiequan:addEffect("active", {
 
     if not was_displayed and not player.dead then
       room:invalidateSkill(player, hudiequan.name, "-turn")
-      if not player:hasSkill("nifu", true) then
-        room:handleAddLoseSkills(player, "nifu", hudiequan.name, false)
-        local turn_event = room.logic:getCurrentEvent():findParent(GameEvent.Turn, true)
-        if turn_event then
-          turn_event:addCleaner(function()
-            room:handleAddLoseSkills(player, "-nifu", hudiequan.name, false)
-          end)
-        end
+      if not player:hasSkill("fei__yuzi_nifu", true) then
+        room:handleAddLoseSkills(player, "fei__yuzi_nifu", hudiequan.name, false)
       end
     end
   end,

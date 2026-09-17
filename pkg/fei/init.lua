@@ -15,15 +15,24 @@ local chanzhangDefensive = fk.CreateCard {
   sub_type = Card.SubtypeDefensiveRide,
   equip_skill = "fei__chanzhang_skill",
 }
+local feiUnexpectation = fk.CreateCard {
+  name = "fei__unexpectation",
+  type = Card.TypeTrick,
+  skill = "fei__unexpectation_skill",
+  is_damage_card = true,
+  damage_type = fk.NormalDamage,
+}
 extension:addCardSpec("fei__chanzhang_offensive", Card.NoSuit, 0)
 extension:addCardSpec("fei__chanzhang_defensive", Card.NoSuit, 0)
-extension:loadCardSkels { chanzhangOffensive, chanzhangDefensive }
+extension:loadCardSkels { chanzhangOffensive, chanzhangDefensive, feiUnexpectation }
 
 Fk:loadTranslationTable {
   ["fei__chanzhang_offensive"] = "馋杖",
   ["fei__chanzhang_defensive"] = "馋杖",
-  [":fei__chanzhang_offensive"] = "装备牌·进攻坐骑<br/><b>装备技能</b>：锁定技，此牌进入/离开装备栏时，你须使用一张非伤害/非基本牌；你可以将区域内所有牌当【无中生有】使用。",
-  [":fei__chanzhang_defensive"] = "装备牌·防御坐骑<br/><b>装备技能</b>：锁定技，此牌进入/离开装备栏时，你须使用一张非伤害/非基本牌；你可以将区域内所有牌当【无中生有】使用。",
+  ["fei__unexpectation"] = "出其不意",
+  [":fei__chanzhang_offensive"] = "装备牌·进攻坐骑<br/><b>装备技能</b>：锁定技，此牌进入/离开装备栏时，你须使用一张非伤害/非基本牌；你可以弃置此牌以将区域内所有牌当【无中生有】使用。",
+  [":fei__chanzhang_defensive"] = "装备牌·防御坐骑<br/><b>装备技能</b>：锁定技，此牌进入/离开装备栏时，你须使用一张非伤害/非基本牌；你可以弃置此牌以将区域内所有牌当【无中生有】使用。",
+  [":fei__unexpectation"] = "锦囊牌<br/><b>时机</b>：出牌阶段<br/><b>目标</b>：一名有手牌的其他角色<br/><b>效果</b>：你展示目标角色的一张手牌，若该牌与此【出其不意】花色不同，你对其造成1点伤害。",
 }
 
 General:new(extension, "fei__leizhenzi", "fei_kingdom", 3):addSkills {
@@ -53,7 +62,7 @@ local yuzi = General:new(extension, "fei__yuzi", "fei_kingdom", 3, 3, General.Fe
 yuzi:addSkills {
   "fei__hudiequan",
 }
-yuzi:addRelatedSkill("nifu")
+yuzi:addRelatedSkill("fei__yuzi_nifu")
 
 General:new(extension, "fei__yanluo", "fei_kingdom", 3, 5, General.Female):addSkills {
   "fei__eguigaizao",
@@ -77,7 +86,16 @@ General:new(extension, "fei__jinchan", "fei_kingdom", 3):addSkills {
 General:new(extension, "fei__degula", "fei_kingdom", 4):addSkills {
   "fei__chihuobenxing",
   "fei__fuyingchongchong",
-  "kuanggu",
+}
+
+General:new(extension, "fei__wangliang", "fei_kingdom", 3, 3, General.Female):addSkills {
+  "fei__guilaile",
+  "fei__mingzhihuo",
+  "fei__mingzhiwu",
+}
+
+General:new(extension, "fei__baixiang", "fei_kingdom", 3):addSkills {
+  "fei__fuyiqizhe",
 }
 
 Fk:loadTranslationTable {
@@ -124,6 +142,14 @@ Fk:loadTranslationTable {
   ["fei__degula"] = "德古拉",
   ["designer:fei__degula"] = "牛头马",
   ["!fei__degula"] = "好吃的，飞来！",
+
+  ["fei__wangliang"] = "魍魉",
+  ["designer:fei__wangliang"] = "牛头马",
+  ["!fei__wangliang"] = "啊，有人欺负我",
+
+  ["fei__baixiang"] = "白象",
+  ["designer:fei__baixiang"] = "牛头马",
+  ["!fei__baixiang"] = "局势反转！",
 }
 
 return extension

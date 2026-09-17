@@ -38,7 +38,7 @@ dushehebo:addEffect(fk.TurnEnd, {
       if player.dead then break end
       if room:getCardArea(id) == Card.DiscardPile then
         local use = room:askToUseVirtualCard(player, {
-          name = "unexpectation",
+          name = "fei__unexpectation",
           skill_name = dushehebo.name,
           prompt = "#fei__dushehebo-use",
           cancelable = false,
