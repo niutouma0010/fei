@@ -40,12 +40,23 @@ FeiUtil.askForChooseCardNames = function(room, player, names, minNum, maxNum,
   return choices
 end
 
-local visibleMark = "@@fei_visible_card-inarea"
+-- 与帝辛所用的 DIY 明置机制保持一致：明置状态记录在手牌标记上，
+-- 再由 VisibilitySkill 令这张牌对所有角色持续可见。
+-- 这不仅影响牌主自己的界面，也会影响其他角色选取、弃置这些牌时的显示。
+MarkEnum.ShownCards = MarkEnum.ShownCards or "@@ShownCards-inhand"
+local visibleMark = MarkEnum.ShownCards
+
+local function hasShownMark(card)
+  if card:getMark(visibleMark) > 0 then return true end
+  return table.find(MarkEnum.TempMarkSuffix, function(suffix)
+    return card:getMark(visibleMark .. suffix) > 0
+  end) ~= nil
+end
 
 FeiUtil.cardIsVisible = function(room, card)
   if type(card) == "number" then card = Fk:getCardById(card) end
   return table.contains({ Card.PlayerEquip, Card.PlayerJudge }, room:getCardArea(card)) or
-    card:getMark(visibleMark) ~= 0
+    hasShownMark(card)
 end
 
 FeiUtil.DisplayCardData = TriggerData:subclass("FeiDisplayCardData")
@@ -57,13 +68,15 @@ Fk:addGameEvent(FeiUtil.DisplayCardEvent, nil, function(self)
   local data = self.data
   local room = self.room
   local cards = table.filter(data.cards, function(card)
-    return table.contains({ Card.PlayerHand, Card.PlayerEquip, Card.PlayerJudge }, room:getCardArea(card)) and
+    return room:getCardArea(card) == Card.PlayerHand and
       not FeiUtil.cardIsVisible(room, card)
   end)
   if #cards == 0 then return false end
+  room:addSkill("#fei__shown_cards")
   table.forEach(cards, function(card)
-    room:setCardMark(card, visibleMark, { room:getCardArea(card) })
+    room:setCardMark(card, visibleMark, 1)
   end)
+  data.who:showCards(Card:getIdList(cards))
   room.logic:trigger(FeiUtil.CardDisplayed, data.who, data)
 end)
 
@@ -72,7 +85,7 @@ FeiUtil.displayCards = function(player, cards)
     cards = table.map(cards, function(id) return Fk:getCardById(id) end)
   end
   local toDisplay = table.filter(cards, function(card)
-    return table.contains({ Card.PlayerHand, Card.PlayerEquip, Card.PlayerJudge }, player.room:getCardArea(card)) and
+    return player.room:getCardArea(card) == Card.PlayerHand and
       not FeiUtil.cardIsVisible(player.room, card)
   end)
   if #toDisplay == 0 then return end
