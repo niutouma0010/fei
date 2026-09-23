@@ -20,6 +20,19 @@ local obtained_mark = "fei__sanrenzuyeshi_obtained-inhand"
 local basic_state_mark = "fei__sanrenzuyeshi_basic_state"
 local basic_slash_mark = "fei__sanrenzuyeshi_basic_slash_state"
 local basic_active_mark = "fei__sanrenzuyeshi_basic_active"
+local growth_failed_mark = "fei__sanrenzuyeshi_growth_failed-turn"
+local first_growth_mark = "fei__sanrenzuyeshi_first_growth-turn"
+local obtain_growth_mark = "fei__sanrenzuyeshi_obtain_growth-turn"
+local basic_growth_mark = "fei__sanrenzuyeshi_basic_growth-turn"
+
+local function recordGrowthCheck(player, growth_mark, all_slash)
+  local room = player.room
+  if all_slash then
+    room:setPlayerMark(player, growth_mark, 1)
+  else
+    room:setPlayerMark(player, growth_failed_mark, 1)
+  end
+end
 
 local function getBasicNames()
   local names = table.simpleClone(Fk:getAllCardNames("b"))
@@ -27,10 +40,13 @@ local function getBasicNames()
   return names
 end
 
+local function isInstantCard(card)
+  return card.type == Card.TypeBasic or card:isCommonTrick()
+end
+
 local function getCentralInstantCards(room)
   return table.filter(centralArea.getCards(room), function(id)
-    local card = Fk:getCardById(id)
-    return card.type == Card.TypeBasic or card:isCommonTrick()
+    return isInstantCard(Fk:getCardById(id))
   end)
 end
 
@@ -47,10 +63,10 @@ end
 
 Fk:loadTranslationTable {
   ["fei__sanrenzuyeshi"] = "三刃卒业式",
-  [":fei__sanrenzuyeshi"] = "当你本回合使用前1张牌后，你可以获得中央区的1张即时牌并明置，且失去之的回合结束时可视为使用1张基本牌；\n你以上述一者为【杀】结算后对应句数字+1。",
-  [":fei__sanrenzuyeshi_inner"] = "当你本回合使用前{1}张牌后，你可以获得中央区的{2}张即时牌并明置，且失去之的回合结束时可视为使用{3}张基本牌；\n你以上述一者为【杀】结算后对应句数字+1。",
+  [":fei__sanrenzuyeshi"] = "当你本回合使用前1张牌后，你可以弃置任意张牌，然后获得中央区的1张即时牌并明置，且失去之的回合结束时可视为使用1张基本牌；上述均为【杀】结算的回合结束后对应句数字+1。",
+  [":fei__sanrenzuyeshi_inner"] = "当你本回合使用前{1}张牌后，你可以弃置任意张牌，然后获得中央区的{2}张即时牌并明置，且失去之的回合结束时可视为使用{3}张基本牌；上述均为【杀】结算的回合结束后对应句数字+1。",
 
-  ["#fei__sanrenzuyeshi-obtain"] = "三刃卒业式：当你本回合使用前%arg张牌后，你可以获得中央区的%arg2张即时牌并明置",
+  ["#fei__sanrenzuyeshi-obtain"] = "三刃卒业式：弃置任意张牌，然后获得中央区的%arg2张即时牌并明置",
   ["#fei__sanrenzuyeshi-use"] = "三刃卒业式：且失去之的回合结束时可视为使用%arg张基本牌",
   ["#fei__sanrenzuyeshi-asked"] = "三刃卒业式：是否视为使用或打出【%arg】？",
   ["#fei__sanrenzuyeshi-asked-choice"] = "三刃卒业式：请选择要视为使用或打出的牌",
@@ -78,50 +94,74 @@ sanrenzuyeshi:addEffect(fk.AfterCardsMove, {
     local n = 1 + player:getMark("fei__sanrenzuyeshi_obtain")
     local use_count = #getUseEventsUntilCurrent(player)
     if use_count == 0 or use_count > limit then return false end
-    local cards = getCentralInstantCards(player.room)
-    if #cards < n then return false end
-    event:setCostData(self, { cards = cards, num = n, limit = limit })
+    local central_num = #getCentralInstantCards(player.room)
+    local discardable = table.filter(player:getCardIds("he"), function(id)
+      if player:prohibitDiscard(id) then return false end
+      local card = Fk:getCardById(id)
+      return central_num >= n or
+        (isInstantCard(card) and card:getMark("fei__central_area_seen-turn") == 0)
+    end)
+    local min_discard = math.max(1, n - central_num)
+    if #discardable < min_discard then return false end
+    event:setCostData(self, {
+      num = n,
+      limit = limit,
+      discardable = discardable,
+      min_discard = min_discard,
+    })
     return true
   end,
   on_cost = function(self, event, target, player, data)
     local room = player.room
     local cost = event:getCostData(self)
-    local cards = room:askToCards(player, {
-      min_num = cost.num,
-      max_num = cost.num,
-      include_equip = false,
+    local discard = room:askToDiscard(player, {
+      min_num = cost.min_discard,
+      max_num = #cost.discardable,
+      include_equip = true,
+      pattern = tostring(Exppattern { id = cost.discardable }),
       skill_name = sanrenzuyeshi.name,
-      pattern = tostring(Exppattern { id = cost.cards }),
-      prompt = "#fei__sanrenzuyeshi-obtain:::" .. cost.limit .. ":" .. cost.num,
       cancelable = true,
-      expand_pile = cost.cards,
+      skip = true,
+      prompt = "#fei__sanrenzuyeshi-obtain:::" .. cost.limit .. ":" .. cost.num,
     })
-    if #cards == cost.num then
-      event:setCostData(self, { cards = cards, num = cost.num, limit = cost.limit })
+    if #discard >= cost.min_discard then
+      event:setCostData(self, { discard = discard, num = cost.num, limit = cost.limit })
       return true
     end
   end,
   on_use = function(self, event, target, player, data)
     local room = player.room
     local cost = event:getCostData(self)
-    local central_cards = centralArea.getCards(room)
-    local cards = table.filter(cost.cards, function(id)
-      return table.contains(central_cards, id)
-    end)
-    if #cards ~= cost.num then return end
-    local all_slash = table.every(cards, function(id)
-      return Fk:getCardById(id).trueName == "slash"
-    end)
-    room:moveCardTo(cards, Card.PlayerHand, player, fk.ReasonPrey,
-      sanrenzuyeshi.name, nil, true, player)
-    for _, id in ipairs(cards) do
-      if room:getCardOwner(id) == player and room:getCardArea(id) == Card.PlayerHand then
-        room:setCardMark(Fk:getCardById(id), obtained_mark, 1)
+    room:throwCard(cost.discard, sanrenzuyeshi.name, player, player)
+    if player.dead then return end
+    local cards = getCentralInstantCards(room)
+    if #cards < cost.num then return end
+    local cards = room:askToCards(player, {
+      min_num = cost.num,
+      max_num = cost.num,
+      include_equip = false,
+      skill_name = sanrenzuyeshi.name,
+      pattern = tostring(Exppattern { id = cards }),
+      prompt = "#fei__sanrenzuyeshi-obtain:::" .. cost.limit .. ":" .. cost.num,
+      cancelable = false,
+      expand_pile = cards,
+    })
+    if #cards == cost.num then
+      local central_cards = centralArea.getCards(room)
+      cards = table.filter(cards, function(id) return table.contains(central_cards, id) end)
+      if #cards ~= cost.num then return end
+      local all_slash = table.every(cards, function(id)
+        return Fk:getCardById(id).trueName == "slash"
+      end)
+      room:moveCardTo(cards, Card.PlayerHand, player, fk.ReasonPrey,
+        sanrenzuyeshi.name, nil, true, player)
+      for _, id in ipairs(cards) do
+        if room:getCardOwner(id) == player and room:getCardArea(id) == Card.PlayerHand then
+          room:setCardMark(Fk:getCardById(id), obtained_mark, 1)
+        end
       end
-    end
-    mobileUtil.displayCards(player, cards)
-    if all_slash then
-      room:addPlayerMark(player, "fei__sanrenzuyeshi_obtain", 1)
+      mobileUtil.displayCards(player, cards)
+      recordGrowthCheck(player, obtain_growth_mark, all_slash)
     end
   end,
 })
@@ -149,6 +189,7 @@ local function consumeBasicState(player, card)
   local left = player:getMark(basic_state_mark)
   if left < 1 then return end
   if card.trueName ~= "slash" then
+    room:setPlayerMark(player, growth_failed_mark, 1)
     room:setPlayerMark(player, basic_slash_mark, 0)
   end
   left = left - 1
@@ -158,7 +199,7 @@ end
 local function finishBasicStateCard(player)
   if player:getMark(basic_state_mark) == 0 and
     player:getMark(basic_slash_mark) > 0 and not player.dead then
-    player.room:addPlayerMark(player, "fei__sanrenzuyeshi_basic", 1)
+    player.room:setPlayerMark(player, basic_growth_mark, 1)
     player.room:setPlayerMark(player, basic_slash_mark, 0)
   end
 end
@@ -284,13 +325,42 @@ sanrenzuyeshi:addEffect(fk.CardUseFinished, {
     if target ~= player or not player:hasSkill(sanrenzuyeshi.name, true) then return false end
     local limit = 1 + player:getMark("fei__sanrenzuyeshi_first")
     local uses = getUseEventsUntilCurrent(player)
-    return #uses == limit and table.every(uses, function(e)
-      return e.data.card.trueName == "slash"
-    end)
+    return #uses > 0 and #uses <= limit
   end,
   on_cost = Util.TrueFunc,
   on_use = function(self, event, target, player, data)
-    player.room:addPlayerMark(player, "fei__sanrenzuyeshi_first", 1)
+    local limit = 1 + player:getMark("fei__sanrenzuyeshi_first")
+    local uses = getUseEventsUntilCurrent(player)
+    if data.card.trueName ~= "slash" then
+      player.room:setPlayerMark(player, growth_failed_mark, 1)
+    elseif #uses == limit then
+      player.room:setPlayerMark(player, first_growth_mark, 1)
+    end
+  end,
+})
+
+sanrenzuyeshi:addEffect(fk.TurnEnd, {
+  mute = true,
+  priority = -10,
+  can_trigger = function(self, event, target, player, data)
+    return player:hasSkill(sanrenzuyeshi.name, true) and
+      player:getMark(growth_failed_mark) == 0 and
+      (player:getMark(first_growth_mark) > 0 or
+        player:getMark(obtain_growth_mark) > 0 or
+        player:getMark(basic_growth_mark) > 0)
+  end,
+  on_cost = Util.TrueFunc,
+  on_use = function(self, event, target, player, data)
+    local room = player.room
+    if player:getMark(first_growth_mark) > 0 then
+      room:addPlayerMark(player, "fei__sanrenzuyeshi_first", 1)
+    end
+    if player:getMark(obtain_growth_mark) > 0 then
+      room:addPlayerMark(player, "fei__sanrenzuyeshi_obtain", 1)
+    end
+    if player:getMark(basic_growth_mark) > 0 then
+      room:addPlayerMark(player, "fei__sanrenzuyeshi_basic", 1)
+    end
   end,
 })
 

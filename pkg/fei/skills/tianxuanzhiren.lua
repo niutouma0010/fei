@@ -4,7 +4,7 @@ local tianxuanzhiren = fk.CreateSkill {
 
 Fk:loadTranslationTable {
   ["fei__tianxuanzhiren"] = "天选之人",
-  [":fei__tianxuanzhiren"] = "你可以发动“天命”或“鬼才”，然后将因此进入弃牌堆的牌置于场上或牌堆一端。",
+  [":fei__tianxuanzhiren"] = "你可以发动“天命”或“鬼才”，然后将因此进入弃牌堆的牌置于场上或牌堆一端中各一处。",
 
   ["#fei__tianxuanzhiren-tianming"] = "天选之人（天命）：你可以弃置两张牌（不足则全弃，无牌则不弃），然后摸两张牌",
   ["#fei__tianxuanzhiren-guicai"] = "天选之人（鬼才）：你可以打出一张手牌替换 %dest 的判定牌",
@@ -14,65 +14,47 @@ Fk:loadTranslationTable {
   ["fei__tianxuanzhiren_bottom"] = "牌堆底",
 }
 
-tianxuanzhiren:addAuxActiveSkill("fei__tianxuanzhiren_place", {
-  card_num = 0,
-  min_target_num = 0,
-  max_target_num = 1,
-  interaction = UI.ComboBox {
-    choices = {
-      "fei__tianxuanzhiren_field",
-      "fei__tianxuanzhiren_top",
-      "fei__tianxuanzhiren_bottom",
-    },
-  },
-  card_filter = Util.FalseFunc,
-  target_filter = function(self, player, to_select, selected, selected_cards, card, extra_data)
-    if self.interaction.data ~= "fei__tianxuanzhiren_field" or
-      #selected > 0 or not extra_data.card_id then
-      return false
-    end
-    local placed_card = Fk:getCardById(extra_data.card_id)
-    if placed_card.type == Card.TypeEquip then
-      return to_select:hasEmptyEquipSlot(placed_card.sub_type)
-    elseif placed_card.sub_type == Card.SubtypeDelayedTrick then
-      return not to_select:isProhibited(to_select, placed_card) and
-        not to_select:hasDelayedTrick(placed_card.name)
-    end
-    return false
-  end,
-  feasible = function(self, player, selected, selected_cards)
-    if self.interaction.data == "fei__tianxuanzhiren_field" then
-      return #selected == 1
-    end
-    return self.interaction.data == "fei__tianxuanzhiren_top" or
-      self.interaction.data == "fei__tianxuanzhiren_bottom"
-  end,
-})
-
 ---@param player ServerPlayer
 ---@param cards integer[]
 local function placeDiscardCards(player, cards)
   local room = player.room
+  local used_places = {}
   for _, id in ipairs(cards) do
     if player.dead then return end
     if room:getCardArea(id) == Card.DiscardPile then
       local card = Fk:getCardById(id)
-      local success, dat = room:askToUseActiveSkill(player, {
-        skill_name = "fei__tianxuanzhiren_place",
-        prompt = "#fei__tianxuanzhiren-place:::" .. card:toLogString(),
-        cancelable = false,
-        extra_data = { card_id = id },
-      })
-      if not (success and dat) then
-        dat = {
-          cards = { id },
-          targets = {},
-          interaction = "fei__tianxuanzhiren_top",
-        }
-      end
+      local choices = table.filter({
+        "fei__tianxuanzhiren_field",
+        "fei__tianxuanzhiren_top",
+        "fei__tianxuanzhiren_bottom",
+      }, function(choice) return not used_places[choice] end)
+      local field_targets = table.filter(room.alive_players, function(p)
+        if card.type == Card.TypeEquip then
+          return p:hasEmptyEquipSlot(card.sub_type)
+        elseif card.sub_type == Card.SubtypeDelayedTrick then
+          return not p:isProhibited(p, card) and not p:hasDelayedTrick(card.name)
+        end
+        return false
+      end)
+      if #field_targets == 0 then table.removeOne(choices, "fei__tianxuanzhiren_field") end
+      if #choices == 0 then break end
 
-      if dat.interaction == "fei__tianxuanzhiren_field" then
-        local to = dat.targets[1]
+      local place = room:askToChoice(player, {
+        choices = choices,
+        skill_name = tianxuanzhiren.name,
+        prompt = "#fei__tianxuanzhiren-place:::" .. card:toLogString(),
+      })
+
+      if place == "fei__tianxuanzhiren_field" then
+        local tos = room:askToChoosePlayers(player, {
+          targets = field_targets,
+          min_num = 1,
+          max_num = 1,
+          prompt = "#fei__tianxuanzhiren-place:::" .. card:toLogString(),
+          skill_name = tianxuanzhiren.name,
+          cancelable = false,
+        })
+        local to = tos[1]
         if card.type == Card.TypeEquip then
           room:moveCardIntoEquip(to, id, tianxuanzhiren.name, false, player)
         elseif card.sub_type == Card.SubtypeDelayedTrick then
@@ -87,15 +69,17 @@ local function placeDiscardCards(player, cards)
           skillName = tianxuanzhiren.name,
           proposer = player,
           moveVisible = true,
-          drawPilePosition = dat.interaction == "fei__tianxuanzhiren_bottom" and -1 or 1,
+          drawPilePosition = place == "fei__tianxuanzhiren_bottom" and -1 or 1,
         }
       end
+      used_places[place] = true
     end
   end
 end
 
 tianxuanzhiren:addEffect(fk.TargetConfirmed, {
   anim_type = "drawcard",
+  audio_index = { 1, 2 },
   can_trigger = function(self, event, target, player, data)
     return target == player and player:hasSkill(tianxuanzhiren.name) and
       data.card and data.card.trueName == "slash"
@@ -185,6 +169,7 @@ tianxuanzhiren:addEffect(fk.TargetConfirmed, {
 
 tianxuanzhiren:addEffect(fk.AskForRetrial, {
   anim_type = "control",
+  audio_index = { 3, 4 },
   guicai = "control",
   can_trigger = function(self, event, target, player, data)
     return player:hasSkill(tianxuanzhiren.name) and #player:getHandlyIds() > 0
@@ -233,6 +218,19 @@ tianxuanzhiren:addEffect(fk.AskForRetrial, {
       -- 理论上AskForRetrial总处于判定事件内；保留兜底以免异常流程漏掉原判定牌。
       placeDiscardCards(player, cards)
     end
+  end,
+})
+
+-- 雷震子使用【杀】时播放其专属牌语音；此效果本身静默，避免重复播放技能语音。
+tianxuanzhiren:addEffect(fk.CardUsing, {
+  mute = true,
+  can_trigger = function(self, event, target, player, data)
+    return target == player and player:hasSkill(tianxuanzhiren.name, true, true) and
+      data.card and data.card.trueName == "slash"
+  end,
+  on_cost = Util.TrueFunc,
+  on_use = function(self, event, target, player, data)
+    player.room:broadcastPlaySound("./packages/fei/audio/skill/fei__leizhenzi_slash")
   end,
 })
 

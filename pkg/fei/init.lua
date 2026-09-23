@@ -34,7 +34,7 @@ local feiUnderhanding = fk.CreateCard {
 }
 local feiShadow = fk.CreateCard {
   name = "fei__shadow",
-  type = Card.TypeTrick,
+  type = Card.TypeBasic,
   skill = "fei__shadow_skill",
 }
 extension:addCardSpec("fei__chanzhang_offensive", Card.NoSuit, 0)
@@ -56,7 +56,7 @@ Fk:loadTranslationTable {
   [":fei__unexpectation"] = "锦囊牌<br/><b>时机</b>：出牌阶段<br/><b>目标</b>：一名有手牌的其他角色<br/><b>效果</b>：你展示目标角色的一张手牌，若该牌与此【出其不意】花色不同，你对其造成1点伤害。",
   [":fei__bogus_flower"] = "锦囊牌<br/><b>目标</b>：你。<br/><b>效果</b>：弃置一至两张牌并摸等量牌；若其中有装备牌，额外摸一张牌。",
   [":fei__underhanding"] = "锦囊牌<br/><b>目标</b>：至多两名区域内有牌的其他角色。<br/><b>效果</b>：你获得目标区域内一张牌，然后交给其一张牌。",
-  [":fei__shadow"] = "衍生牌。此牌不能被使用。",
+  [":fei__shadow"] = "衍生牌。此牌不能被使用；此牌进入弃牌堆时，销毁之。",
 }
 
 General:new(extension, "fei__leizhenzi", "fei_kingdom", 3):addSkills {
@@ -87,6 +87,7 @@ General:new(extension, "fei__baigujing", "fei_kingdom", 3, 3, General.Female):ad
 local yuzi = General:new(extension, "fei__yuzi", "fei_kingdom", 3, 3, General.Female)
 yuzi:addSkills {
   "fei__hudiequan",
+  "fei__hudiequan_response",
 }
 yuzi:addRelatedSkill("fei__yuzi_nifu")
 
