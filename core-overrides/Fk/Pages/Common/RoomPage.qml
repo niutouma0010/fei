@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Qt5Compat.GraphicalEffects
 import QtQuick.Dialogs
+import Qt.labs.folderlistmodel
 
 import Fk
 import Fk.Components.Common
@@ -14,6 +15,13 @@ import LunarLtk
 
 Item {
   id: root
+
+  readonly property string feiBackgroundDir: Cpp.path + "/packages/fei/image/background"
+
+  function asFileUrl(path) {
+    if (path.toString().startsWith("file:")) return path;
+    return (Cpp.os === "Win" ? "file:///" : "file://") + path;
+  }
 
   readonly property alias gameContent: gameLoader.item
   property alias gameComponent: gameLoader.sourceComponent
@@ -436,6 +444,7 @@ Item {
         model: ListModel {
           ListElement { name: "Audio Settings" }
           ListElement { name: "Control Settings" }
+          ListElement { name: "Background Settings" }
         }
       }
 
@@ -448,6 +457,92 @@ Item {
         clip: true
         L.AudioSetting {}
         L.ControlSetting {}
+
+        Item {
+          ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 16
+            spacing: 10
+
+            Text {
+              text: Lua.tr("Choose Room Background")
+              font.pixelSize: 22
+              font.bold: true
+              color: "#4A3425"
+            }
+
+            Text {
+              text: Lua.tr("Click a thumbnail to apply it immediately. The choice is saved for later games.")
+              color: "#705A49"
+              wrapMode: Text.WordWrap
+              Layout.fillWidth: true
+            }
+
+            GridView {
+              id: backgroundGrid
+              Layout.fillWidth: true
+              Layout.fillHeight: true
+              clip: true
+              cellWidth: Math.max(180, width / Math.max(1, Math.floor(width / 220)))
+              cellHeight: cellWidth * 0.62
+
+              model: FolderListModel {
+                folder: root.asFileUrl(root.feiBackgroundDir)
+                nameFilters: ["*.png", "*.jpg", "*.jpeg", "*.webp"]
+                showDirs: false
+                sortField: FolderListModel.Name
+              }
+
+              delegate: Item {
+                required property string fileName
+                required property url fileUrl
+                width: backgroundGrid.cellWidth
+                height: backgroundGrid.cellHeight
+
+                Rectangle {
+                  anchors.fill: parent
+                  anchors.margins: 6
+                  radius: 7
+                  color: "#33000000"
+                  border.width: Config.roomBg.toString() === fileUrl.toString() ? 4 : 1
+                  border.color: Config.roomBg.toString() === fileUrl.toString() ? "#E9B44C" : "#806B55"
+
+                  Image {
+                    anchors.fill: parent
+                    anchors.margins: 4
+                    source: fileUrl
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    sourceSize.width: 360
+                    sourceSize.height: 220
+                  }
+
+                  Rectangle {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    height: 28
+                    color: "#99000000"
+                    Text {
+                      anchors.centerIn: parent
+                      text: fileName.replace(/\.[^.]+$/, "")
+                      color: "white"
+                      font.bold: true
+                    }
+                  }
+
+                  MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Config.roomBg = fileUrl.toString()
+                  }
+                }
+              }
+
+              ScrollBar.vertical: ScrollBar {}
+            }
+          }
+        }
       }
     }
   }
@@ -469,13 +564,7 @@ Item {
     // }
 
     MediaArea {
-      source: {
-        const feiBackground = Cpp.path + "/packages/fei/image/background/25.png";
-        if (Fs.exists(feiBackground)) {
-          return (Cpp.os === "Win" ? "file:///" : "file://") + feiBackground;
-        }
-        return Config.roomBg;
-      }
+      source: Config.roomBg
       anchors.fill: parent
       fillMode: Image.PreserveAspectCrop
       pause: false
@@ -875,6 +964,14 @@ Item {
   }
 
   Component.onCompleted: {
+    // Migrate the old hard-coded background to a real, user-editable setting.
+    if (Config.roomBg === Cpp.path + "/image/gamebg") {
+      const defaultFeiBackground = feiBackgroundDir + "/25.png";
+      if (Fs.exists(defaultFeiBackground)) {
+        Config.roomBg = asFileUrl(defaultFeiBackground);
+      }
+    }
+
     overlay.addCallback(Command.EnterLobby, enterLobby);
     overlay.addCallback(Command.GameLog, addToLog);
     overlay.addCallback(Command.ReplyToServer, replyToServer);
